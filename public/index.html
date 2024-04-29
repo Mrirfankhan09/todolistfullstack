@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List with Sub-tasks</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .task {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .task label {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .subtasks {
+            margin-top: 5px;
+            list-style-type: none;
+            padding-left: 20px;
+        }
+
+        .subtasks li {
+            margin-bottom: 5px;
+        }
+
+        .subtask-input {
+            margin-top: 5px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            margin-left: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+    </style>
+    <!-- <script src="script.js"></script> -->
+</head>
+
+<body>
+    <div class="container">
+        <h1>Todo List with Sub-tasks</h1>
+        <div id="todo-list"></div>
+        <form id="add-task-form" action="" method="post">
+            <input type="text" id="task-input" placeholder="Enter a new task">
+            <button type="submit" class="btn">Add Task</button>
+        </form>
+    </div>
+
+    <script>
+        // Function to create a new task element
+        let tasks = [];
+
+
+        function createTaskElement(task, index) {
+            console.log(task);
+            const taskElement = document.createElement('div');
+            taskElement.className = 'task';
+            taskElement.dataset.index = index;
+            taskElement.innerHTML = `
+                <label>
+                    <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+                    ${task.title}
+                </label>
+                <ul class="subtasks">
+                    ${task.subtasks.map((subtask, subtaskIndex) => `
+                        <li data-subtask-index="${subtaskIndex}">
+                            <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''}>
+                            ${subtask.title}
+                        </li>
+                    `).join('')}
+                </ul>
+                <form class="subtask-input">
+                    <input type="text" placeholder="Add a new sub-task">
+                    <button type="submit" class="btn">Add</button>
+                </form>
+                <button class="btn btn-danger delete-task">Delete Task</button>
+            `;
+            return taskElement;
+        }
+
+        // // Function to render todo list
+        function renderTodoList(tasks) {
+            const todoList = document.getElementById('todo-list');
+            todoList.innerHTML = '';
+            tasks.forEach((task, index) => {
+                const taskElement = createTaskElement(task, index);
+                todoList.appendChild(taskElement);
+            });
+        }
+
+        // // Sample data for demonstration
+
+
+
+
+
+        // // Render initial todo list
+        // renderTodoList(tasks);
+
+        // // Event listener for adding a new task
+
+        const fetchtasks = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/tasks/taskAr',)
+                if (response.ok) {
+                    const data = await response.json();
+                    tasks = data;
+                    // console.log(data);
+                    renderTodoList(tasks);
+                } else {
+                    console.error('Failed to fetch tasks:', response.status);
+                }
+            }
+            catch (error) {
+                console.error('Error fetching tasks:', error);
+            }
+
+        }
+
+
+
+        const addTaskForm = document.getElementById('add-task-form');
+        addTaskForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const taskInput = document.getElementById('task-input');
+            const taskTitle = taskInput.value.trim();
+            if (taskTitle) {
+                try {
+                    const response = await fetch('http://localhost:3000/tasks', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ title: taskTitle })
+                    });
+                    if (response.ok) {
+                        const newTask = await response.json();
+                        tasks.push(newTask);
+                        renderTodoList(tasks);
+                        taskInput.value = '';
+                    } else {
+                        console.error('Failed to add task:', response.status);
+                    }
+                } catch (error) {
+                    console.error('Error adding task:', error);
+                }
+            }
+        });
+        // // Event delegation for task checkboxes
+        document.addEventListener('change', async function (event) {
+            if (event.target.matches('.task-checkbox')) {
+                const taskIndex = event.target.closest('.task').dataset.index;
+                tasks[taskIndex].completed = event.target.checked;
+                await updateTaskCompletion(tasks[taskIndex]._id, tasks[taskIndex].completed);
+
+            } else if (event.target.matches('.subtask-checkbox')) {
+                const taskIndex = event.target.closest('.task').dataset.index;
+                const subtaskIndex = event.target.closest('li').dataset.subtaskIndex;
+                tasks[taskIndex].subtasks[subtaskIndex].completed = event.target.checked;
+                await updateSubtaskCompletion(tasks[taskIndex]._id, tasks[taskIndex].subtasks[subtaskIndex]._id, tasks[taskIndex].subtasks[subtaskIndex].completed);
+            }
+            // fetchtasks();
+        });
+
+        async function updateTaskCompletion(taskId, completed) {
+            try {
+                const response = await fetch(`http://localhost:3000/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ completed })
+                });
+                if (!response.ok) {
+                    console.error('Failed to update task completion:', response.status);
+                }
+            } catch (error) {
+                console.error('Error updating task completion:', error);
+            }
+        }
+
+        async function updateSubtaskCompletion(taskId, subtaskId, completed) {
+            try {
+                const response = await fetch(`http://localhost:3000/tasks/${taskId}/subtask/${subtaskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ completed })
+                });
+                if (!response.ok) {
+                    console.error('Failed to update subtask completion:', response.status);
+                }
+            } catch (error) {
+                console.error('Error updating subtask completion:', error);
+            }
+            fetchtasks();
+        }
+
+
+        // // Event delegation for adding a new sub-task
+        // // Event delegation for adding a new sub-task
+        document.addEventListener('submit', async function (event) {
+            if (event.target.matches('.subtask-input')) {
+                event.preventDefault();
+                const taskIndex = event.target.closest('.task').dataset.index;
+                const subtaskInput = event.target.querySelector('input[type="text"]');
+                const subtaskTitle = subtaskInput.value.trim();
+                if (subtaskTitle) {
+                    const taskId = tasks[taskIndex]._id;
+                    const newSubtask = await createSubtask(taskId, subtaskTitle);
+                    // console.log(newSubtask);
+                    
+                    tasks[taskIndex].subtasks.push(newSubtask);
+                    renderTodoList(tasks);
+                    subtaskInput.value = '';
+                }
+            }
+        });
+
+        async function createSubtask(taskId, subtaskTitle) {
+            try {
+                const response = await fetch(`http://localhost:3000/tasks/${taskId}/subtask`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title: subtaskTitle })
+                });
+                if (response.ok) {
+                    const newSubtask = await response.json();
+                    console.log(newSubtask);
+                    return newSubtask;
+                } else {
+                    console.error('Failed to add subtask:', response.status);
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error adding subtask:', error);
+                return null;
+            }
+        }
+
+        // // Event delegation for deleting a task
+        document.addEventListener('click', async function (event) {
+            if (event.target.matches('.delete-task')) {
+                const taskIndex = event.target.closest('.task').dataset.index;
+                const taskId = tasks[taskIndex]._id;
+                tasks.splice(taskIndex, 1);
+                renderTodoList(tasks);
+                await deleteTask(taskId);
+            }
+        });
+
+        async function deleteTask(taskId) {
+            try {
+                const response = await fetch(`http://localhost:3000/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) {
+                    console.error('Failed to delete task:', response.status);
+                }
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
+        }
+
+        fetchtasks();
+    </script>
+</body>
+
+</html>
